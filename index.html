@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RCL Container Journey — Process Mining</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F6F3;--surface:#FFFFFF;--surface-2:#F0EEE9;
+  --border:#E2DED6;--border-strong:#C8C4BB;
+  --text:#1A1916;--text-2:#6B6760;--text-3:#9C9890;
+  --pre:#534AB7;--pre-bg:#EEEDFE;
+  --exp:#0F6E56;--exp-bg:#E1F5EE;
+  --vsl:#854F0B;--vsl-bg:#FAEEDA;
+  --imp:#993C1D;--imp-bg:#FAECE7;
+  --ok:#3B6D11;--ok-bg:#EAF3DE;
+  --warn:#854F0B;--warn-bg:#FAEEDA;
+  --bad:#A32D2D;--bad-bg:#FCEBEB;
+  --na:#5F5E5A;--na-bg:#F1EFE8;
+  --radius:6px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono","Fira Code",monospace;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1A1916;--surface:#242220;--surface-2:#2C2C2A;
+    --border:#3A3936;--border-strong:#4E4D49;
+    --text:#E8E6E0;--text-2:#9C9890;--text-3:#6B6760;
+    --pre:#AFA9EC;--pre-bg:#26215C;--exp:#5DCAA5;--exp-bg:#04342C;
+    --vsl:#FAC775;--vsl-bg:#412402;--imp:#F0997B;--imp-bg:#4A1B0C;
+    --ok:#97C459;--ok-bg:#173404;--warn:#FAC775;--warn-bg:#412402;
+    --bad:#F09595;--bad-bg:#501313;--na:#B4B2A9;--na-bg:#2C2C2A;
+  }
+}
+html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5}
+body{min-height:100vh}
+.page-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.header-left h1{font-size:16px;font-weight:600;color:var(--text);letter-spacing:-0.02em}
+.header-left p{font-size:11px;color:var(--text-2);margin-top:2px}
+.phase-pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:var(--surface-2);color:var(--text-2);transition:all .15s}
+.pill:hover{border-color:var(--border-strong)}
+.pill.active[data-phase="ALL"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.pill.active[data-phase="PRE"]{background:var(--pre-bg);color:var(--pre);border-color:var(--pre)}
+.pill.active[data-phase="EXP"]{background:var(--exp-bg);color:var(--exp);border-color:var(--exp)}
+.pill.active[data-phase="VSL"]{background:var(--vsl-bg);color:var(--vsl);border-color:var(--vsl)}
+.pill.active[data-phase="IMP"]{background:var(--imp-bg);color:var(--imp);border-color:var(--imp)}
+.controls{display:flex;align-items:center;gap:12px;padding:8px 24px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap}
+.controls label{font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:6px}
+.controls select{font-size:12px;padding:4px 8px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface-2);color:var(--text);cursor:pointer}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2)}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.main-layout{display:flex;height:calc(100vh - 108px);overflow:hidden}
+.scroll-col{flex:1;overflow:auto;padding:16px 16px 16px 24px}
+.detail-col{width:0;min-width:0;overflow:hidden;transition:width .2s,min-width .2s,padding .2s;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;padding:0;flex-shrink:0}
+.detail-col.show{width:360px;min-width:360px;padding:16px}
+.swimlane{display:flex;flex-direction:column;gap:0;min-width:max-content}
+.phase-row{display:flex;margin-left:118px;gap:4px;margin-bottom:0}
+.phase-seg{font-size:9px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;padding:4px 0;text-align:center;border-radius:3px 3px 0 0}
+.stage-header-row{display:flex;margin-left:118px;gap:4px;margin-bottom:2px}
+.stage-hdr{width:110px;min-width:110px;font-size:9px;text-align:center;padding:3px 2px;color:var(--text-2);line-height:1.3;border-bottom:2px solid var(--border)}
+.stage-hdr span{font-size:8px;font-weight:600;letter-spacing:0.04em;display:block;margin-bottom:1px}
+.metric-row{display:flex;align-items:center;gap:4px;margin-bottom:4px}
+.metric-lane-lbl{width:118px;min-width:118px;font-size:10px;color:var(--text-3);padding-right:8px;text-align:right}
+.metric-cell{width:110px;min-width:110px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border-radius:3px;cursor:pointer;transition:filter .15s}
+.metric-cell:hover{filter:brightness(0.9)}
+.metric-cell.ok{background:var(--ok-bg);color:var(--ok)}
+.metric-cell.warn{background:var(--warn-bg);color:var(--warn)}
+.metric-cell.bad{background:var(--bad-bg);color:var(--bad)}
+.metric-cell.na{background:var(--na-bg);color:var(--na)}
+.connector-row{display:flex;align-items:center;margin-left:118px;gap:4px;height:20px;margin-bottom:3px}
+.conn{width:110px;min-width:110px;display:flex;align-items:center;justify-content:center;position:relative}
+.conn-arrow{width:88%;height:1.5px;background:var(--border-strong);display:flex;align-items:center;justify-content:flex-end;position:relative}
+.conn-arrow::after{content:"";width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;border-left:6px solid var(--border-strong);position:absolute;right:-1px}
+.conn-badge{position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:600;padding:1px 5px;border-radius:10px;white-space:nowrap;pointer-events:none}
+.conn-badge.ok{background:var(--ok-bg);color:var(--ok)}
+.conn-badge.warn{background:var(--warn-bg);color:var(--warn)}
+.conn-badge.bad{background:var(--bad-bg);color:var(--bad)}
+.conn-badge.na{background:var(--na-bg);color:var(--na);border:1px solid var(--border)}
+.dept-row{display:flex;align-items:center;gap:4px;border-top:1px solid var(--border);height:64px}
+.dept-row:last-of-type{border-bottom:1px solid var(--border)}
+.dept-lbl{width:118px;min-width:118px;font-size:11px;color:var(--text-2);padding:0 10px 0 0;text-align:right;line-height:1.3;font-weight:500;flex-shrink:0}
+.cell{width:110px;min-width:110px;height:54px;border-radius:5px;border:1px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:filter .15s;padding:4px;position:relative}
+.cell:hover{filter:brightness(0.93)}
+.cell.empty{background:transparent!important;border:none!important;cursor:default;pointer-events:none}
+.cell-name{font-size:9.5px;font-weight:600;text-align:center;line-height:1.3;margin-bottom:2px}
+.cell-sla{font-size:8px;text-align:center;line-height:1.2;opacity:0.75}
+.cell.PRE{background:var(--pre-bg);border-color:rgba(83,74,183,0.25);color:var(--pre)}
+.cell.EXP{background:var(--exp-bg);border-color:rgba(15,110,86,0.25);color:var(--exp)}
+.cell.VSL{background:var(--vsl-bg);border-color:rgba(133,79,11,0.25);color:var(--vsl)}
+.cell.IMP{background:var(--imp-bg);border-color:rgba(153,60,29,0.25);color:var(--imp)}
+.cell.bad{border-color:var(--bad)!important;border-width:1.5px!important}
+.cell.warn-border{border-style:dashed}
+.dp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.dp-title{font-size:14px;font-weight:600;color:var(--text);letter-spacing:-0.01em}
+.dp-phase-badge{font-size:10px;font-weight:600;padding:3px 9px;border-radius:12px;margin-top:2px;display:inline-block}
+.dp-close{font-size:12px;padding:4px 10px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface-2);color:var(--text-2);cursor:pointer;flex-shrink:0}
+.dp-close:hover{background:var(--border)}
+.dp-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:10px}
+.dp-card{background:var(--surface-2);border-radius:var(--radius);padding:8px 10px;border:1px solid var(--border)}
+.dp-card-lbl{font-size:10px;color:var(--text-3);margin-bottom:3px}
+.dp-card-val{font-size:16px;font-weight:600;color:var(--text)}
+.dp-card-val.ok{color:var(--ok)}
+.dp-card-val.warn{color:var(--warn)}
+.dp-card-val.bad{color:var(--bad)}
+.dp-body{display:flex;flex-direction:column;gap:8px}
+.dp-section{background:var(--surface-2);border-radius:var(--radius);padding:10px 12px;border:1px solid var(--border)}
+.dp-section h4{font-size:10px;font-weight:600;color:var(--text-2);margin-bottom:5px;letter-spacing:0.04em}
+.dp-section p{font-size:12px;color:var(--text);line-height:1.6}
+.dp-section p.mono{color:var(--text-2);font-family:var(--mono);font-size:10px;line-height:1.7}
+.dp-section p.flow{font-size:12px;color:var(--text);line-height:1.65}
+.gap-flag{display:inline-flex;align-items:center;gap:4px;font-size:10px;background:var(--warn-bg);color:var(--warn);border-radius:3px;padding:2px 6px;margin-bottom:5px;font-weight:500}
+.coc-soc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.source-note{padding:8px 24px 16px;font-size:10px;color:var(--text-3);border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<header class="page-header">
+  <div class="header-left">
+    <h1>Container Journey — Process Mining</h1>
+    <p>22-stage swimlane &middot; Dept ownership &middot; Cycle time &amp; bottleneck analysis &middot; GOLD LH data sources</p>
+  </div>
+  <div class="phase-pills">
+    <button class="pill active" data-phase="ALL" onclick="filterPhase('ALL')">All phases</button>
+    <button class="pill" data-phase="PRE" onclick="filterPhase('PRE')">Pre-shipment</button>
+    <button class="pill" data-phase="EXP" onclick="filterPhase('EXP')">Export</button>
+    <button class="pill" data-phase="VSL" onclick="filterPhase('VSL')">Vessel</button>
+    <button class="pill" data-phase="IMP" onclick="filterPhase('IMP')">Import</button>
+  </div>
+</header>
+<div class="controls">
+  <label>Metric&nbsp;
+    <select id="metric-sel" onchange="renderAll()">
+      <option value="cycle">Avg cycle time (hrs)</option>
+      <option value="sla">SLA compliance %</option>
+      <option value="vol">Volume (TEU est.)</option>
+    </select>
+  </label>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--ok)"></div>On target</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div>Watch</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bad)"></div>Bottleneck</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--na)"></div>No data</div>
+  </div>
+</div>
+<div class="main-layout">
+  <div class="scroll-col">
+    <div class="swimlane" id="swimlane"></div>
+    <div class="source-note">Data: GOLD LH / cc_lh &middot; FactDNDMonitoring, Mart_EMS_Activity, BLBOOKINGInMonth, MartBLManifestInvoiceSOP, FactTerminalDepartureReportDetail, DimVssSchedulePortCall, FactQuotationRate &middot; QTN/BKG cycle times from Quotation Analysis and Booking Analysis PBI reports &middot; Remaining values are representative placeholders pending live Fabric SQL queries.</div>
+  </div>
+  <div class="detail-col" id="detail-col">
+    <div id="detail-panel"></div>
+  </div>
+</div>
+<script>
+const DATA_FLOW = {
+  1: "FactQuotationRate is written by the DCS QTN module when a salesman creates a quotation. QtnCreateDate is the start point. No separate inquiry table is confirmed in cc_lh, so the Rate Inquiry to QTN gap is derived from this field.",
+  2: "FactQuotationRate records each quotation opened and closed in DCS. FactQuotationActivityLog captures every status change with a timestamp. Comparing Qtn1stClosedDate and QtnLastClosedDate reveals rework loops. Both tables live in the cc_lh GOLD LH layer.",
+  3: "No direct source exists. The gap between QtnLastClosedDate and BookingDate in FactBookingActivityLog serves as a proxy for customer acceptance time. CRM data is tracked via a separate DCS CRM module.",
+  4: "BLBOOKINGInMonth is populated by the DCS BKG module. BookingDate marks when the booking is created; BookingConfirmedDate marks when space is confirmed. COC and SOC bookings share the same table, separated by the SOC_COC column. DimBkgCancellationReasons stores cancellation reason codes.",
+  5: "BookingSpaceControl is updated when BSA slot allocation is confirmed or rejected in DCS. It links BookingNo to the BSA voyage slot and stores the confirmation timestamp. BSA fill rate rolls up from this table.",
+  6: "Mart_EMS_Activity is fed by EMS EDI messages from depots (SLA 5 hrs) or manual entry (SLA 12 hrs). Activity code RLSH marks the empty release gate-out. EOM_Inventory_Report aggregates daily empty stock and stay-day counts by port.",
+  7: "No dedicated stuffing table exists in cc_lh. Duration is derived: RCFL.ActivityDate (laden container received at terminal) minus RLSH.ActivityDate (empty released from depot), both from Mart_EMS_Activity.",
+  8: "No source in cc_lh. A Thai Customs EDI feed or manual entry table would be required. This is a confirmed gap in the GOLD LH schema and the stage cannot be measured from RCL data today.",
+  9: "Mart_EMS_Activity_GateOut captures the gate-in sequence when a laden container enters the export terminal. Activity code RCFL is the gate-in event. FactTOSCostForTrade links TOS terminal records to booking and BL for cost allocation.",
+  10: "FactBLContainers is updated when a BL is created in the DCS Central Doc module. FactBLActivityLog records each BL status change with a timestamp. SI submission is not a separate event; it is inferred from BL draft creation activity.",
+  11: "MartBLManifestInvoiceSOP is a mart-layer table in cc_lh that pre-joins BL, manifest, and invoice timestamps. POL_ATD_Datetime comes from the vessel schedule. ManifestInvoiceExport is the flag confirming manifest completion after departure.",
+  12: "MartBLManifestInvoiceSOP provides the manifest filing date. DG manifest data comes from DimDGManifestedReport, populated from DCS BL DG declaration fields when a BL containing dangerous goods is manifested.",
+  13: "Mart_EMS_Activity captures all EMS gate events. EDI messages from terminals and depots feed this table automatically; manual entries are submitted by the EOM team. EOM_Inventory_Report aggregates by port and date for KPI reporting.",
+  14: "FactIJS_JobOrder is created by location staff in the DCS IJS module before each inland movement. IJSMatchBookingBLNo links the job order to its booking or BL. The RCLL TMS is a separate system and it is not yet confirmed whether it feeds cc_lh.",
+  15: "FactTerminalDepartureReportDetail is submitted by the terminal team after each vessel departure and loaded into cc_lh. Key fields: arrival, berthed, commence (EZLL start), completed (EZDL end), unberthed, plus reason codes and per-crane productivity data.",
+  16: "DimVssSchedulePortCall is the vessel schedule table, updated by HQ vessel operations in DCS. ETA_Datetime, ATA_Datetime, and ATD_Datetime are the primary timestamps. FactVssSchedulePortCallEditLog records each revision for ETA accuracy tracking.",
+  17: "DimVssSchedulePortCall provides ETD and ATA for each transit port. BLBOOKINGInMonth carries POT1, POT2, and POT3 columns identifying the transshipment routing assigned to each BL.",
+  18: "DimVssSchedulePortCall provides POD_ATA_Datetime for import arrival. FactVssSchedulePortCallEditLog shows how many times ETA was revised before actual arrival, which measures ETA forecast accuracy.",
+  19: "MartSummaryRCLFleetEquipment aggregates container fleet status by grade and location from EMS activity. FactMNR_EstimateRepair is populated from EOR submissions in the DCS MnR module when a repair is assessed and authorised.",
+  20: "FactDNDMonitoring pre-computes DFUL_RLCN_DiffDate (vessel discharge to customer pickup) per container — ready to use with no extra calculation. Mart_EMS_Activity provides the raw DFUL and RLCN activity timestamps as the underlying source.",
+  21: "FactDNDMonitoring pre-computes RLCN_RCCN_DiffDate (customer pickup to empty return) per container, which is the primary DnD charge accrual window. Mart_EMS_Activity provides raw RCCN gate-in timestamps. Both tables are in cc_lh GOLD LH.",
+  22: "MartBLManifestInvoiceSOP links BL to invoice date in cc_lh. InvoiceListReport is populated from the DCS invoice module. F&A KPIs are sourced from FA_LH (Finance and Accounting Lakehouse), a separate Fabric lakehouse from cc_lh."
+};
+
+
+const STEPS_DETAIL = {
+  1: {
+    steps: [
+      {label:"Receive inquiry", detail:"Customer contacts RCL via phone, email, or e-Service portal. Log inquiry in DCS CRM module with customer code, POL, POD, commodity, and equipment type.", sla:false},
+      {label:"Check customer status", detail:"Verify customer credit status, existing contracts, and blacklist flag in CRM. If blacklisted or credit-blocked, escalate to Trade manager before proceeding.", sla:false},
+      {label:"Log inquiry in system", detail:"Create inquiry record in DCS. Assign to salesman. System timestamp = Rate Inquiry start time. SLA clock begins here.", sla:false},
+      {label:"Route to quotation", detail:"Trigger QTN creation within 1 hr of inquiry receipt. Delay at this step directly breaches the inquiry SLA and delays the QTN process time KPI.", sla:true}
+    ]
+  },
+  2: {
+    steps: [
+      {label:"Open QTN in DCS", detail:"Salesman creates a quotation in DCS QTN module. QtnCreateDate is recorded. Quotation must reference the inquiry, customer code, POL, POD, equipment size/type, and shipment term.", sla:false},
+      {label:"Check master rate", detail:"System auto-compares proposed rate against master rate. Result: Equal, Less Than, or More Than master rate. This determines the approval path.", sla:false},
+      {label:"Auto-approve path (under 2 hrs)", detail:"If rate equals master rate AND no DnD override needed, QTN is auto-approved. COC: 132,374 QTNs at 0.4 hrs avg. SOC: 1,159 at 2.6 hrs avg. This is the only path that meets the 2 hr SLA.", sla:false},
+      {label:"Need Rate Approve path", detail:"Rate differs from master rate. Requires Trade manager approval. COC avg 4.8 hrs (30% fail). SOC avg 5.2 hrs (30% fail). Breaches 2 hr SLA. Main cause: rate negotiation cycles and manager unavailability.", sla:true},
+      {label:"Need DnD Approve path", detail:"DnD free days or waiver requires separate approval. COC avg 4.7 hrs (33% fail). Breaches 2 hr SLA. DnD approval is independent of rate approval.", sla:true},
+      {label:"Need Rate AND DnD Approve", detail:"Both rate and DnD require approval. Worst bucket: COC avg 7.6 hrs (37% fail), SOC avg 84 hrs (71% fail). Both approvals must complete sequentially or in parallel. Major bottleneck.", sla:true},
+      {label:"Close QTN and send to customer", detail:"QtnLastClosedDate recorded. If customer rejects and revises, Qtn1stClosedDate vs QtnLastClosedDate gap indicates rework loops. QTN-to-BKG conversion target is at least 55%.", sla:false}
+    ]
+  },
+  3: {
+    steps: [
+      {label:"Customer reviews quotation", detail:"Customer reviews rate, free days, and routing. May request amendments (rate, equipment type, POD, DnD free days). Each amendment restarts the approval clock.", sla:false},
+      {label:"Amendment handling", detail:"If customer requests changes, salesman revises QTN in DCS. New approval path may be triggered depending on what changed. Each revision cycle adds to elapsed time.", sla:true},
+      {label:"Customer acceptance", detail:"Customer confirms via email, e-Service, or verbal confirmation. No explicit accept timestamp exists in DCS — acceptance is inferred from the booking creation gap.", sla:false},
+      {label:"CRM update", detail:"Salesman updates customer status in CRM (active, return, lost, downgrade). Big/Small/Medium BCO classification updated. CBM mapping verified against booking commodity.", sla:false}
+    ]
+  },
+  4: {
+    steps: [
+      {label:"Create booking in DCS", detail:"CS team creates booking in DCS BKG module against the accepted QTN. BookingDate is recorded. Booking must include: vessel voyage, POL, POD, equipment type/size, shipper/consignee, commodity.", sla:false},
+      {label:"Auto-approve path", detail:"If BSA slot is available and no space override needed, booking is auto-confirmed. COC: 5,711 bookings at 0.0 hrs (100% pass). SOC: 3,519 at 0.0 hrs. Only 11.4% of COC and 66.2% of SOC volume reaches this path.", sla:false},
+      {label:"BSA space check", detail:"System checks BSA slot allocation against BookingSpaceControl. If space is available within BSA commitment, booking proceeds. If not, CS must negotiate with Trade/HQ for space override.", sla:false},
+      {label:"Space override / manual approval", detail:"CS raises space request to Trade or HQ. COC Have BSA: 57% fail at 18.2 hrs avg. SOC Have BSA: 58% fail at 45.3 hrs avg — severe bottleneck. Waiting for HQ response is the primary delay cause. Breaches 2 hr SLA.", sla:true},
+      {label:"No BSA path", detail:"Booking without BSA allocation. COC: 57% fail at 16.8 hrs avg. SOC: 46% fail at 42.6 hrs avg. Both breach 2 hr SLA. Requires spot space allocation which involves vessel load plan review.", sla:true},
+      {label:"Booking confirmation", detail:"BookingConfirmedDate recorded when space is confirmed. Cycle time = BookingConfirmedDate minus BookingDate. Must be completed at least 24 hrs before POL ATD. Late confirmation = EZLL blocking risk.", sla:true},
+      {label:"Booking tracking close", detail:"CS must close booking tracking within 24 hrs of ATD. Late close affects BL tracking KPI and may delay EZLL TDR completion. KRPUS is consistently the slowest location.", sla:true}
+    ]
+  },
+  5: {
+    steps: [
+      {label:"BSA slot verification", detail:"System checks if the BSA partner has confirmed the slot volume for the voyage. BookingSpaceControl links BookingNo to BSA voyage allocation.", sla:false},
+      {label:"Slot allocation confirmation", detail:"If slot is within committed BSA volume, confirmation is immediate. If overcommitted, CS must escalate to Trade and BSA partner. Target: space confirm within 4 hrs.", sla:true},
+      {label:"Overcommit resolution", detail:"If BSA slot is overcommitted, Trade negotiates with partner for extra space or re-routes cargo to alternative vessel. This is the primary delay cause at this stage.", sla:true},
+      {label:"Confirmation to customer", detail:"CS confirms booking to customer with vessel, voyage, and ETD. Waiting-to-Confirmed conversion rate is monitored. Unconfirmed bookings after 24 hrs are escalated.", sla:false}
+    ]
+  },
+  6: {
+    steps: [
+      {label:"Receive empty release request", detail:"Based on confirmed booking, customer or agent requests empty container release (DO) from depot. EOM team processes the request and checks available equipment at the nearest depot.", sla:false},
+      {label:"Equipment availability check", detail:"EOM checks EA (Empty Available) stock in EOM_Inventory_Report. If equipment not available at preferred depot, alternative depot or equipment type is offered. Long-stay containers prioritised.", sla:false},
+      {label:"Container condition grading", detail:"Container is graded (A/B/C/D) before release. If repair needed, EOR is submitted. Container repair turnaround target is 1.5 days. Damaged containers must not be released to shipper.", sla:true},
+      {label:"EMS RLSH submission", detail:"Gate-out event recorded in EMS as activity RLSH. EDI submission must be within 5 hrs; manual within 12 hrs of actual gate-out. Late EMS submission triggers scorecard penalty.", sla:true},
+      {label:"DO issued to customer", detail:"Delivery Order issued to customer/agent allowing pickup from depot. DO_Release_Flag updated in EOM_Inventory_Report. Customer proceeds to pick up empty container for stuffing.", sla:false}
+    ]
+  },
+  7: {
+    steps: [
+      {label:"Customer picks up empty container", detail:"Customer or their trucker collects empty container from depot using the DO. RLSH gate-out timestamp is the start of stuffing clock. Shipper is now responsible for the container.", sla:false},
+      {label:"Cargo stuffing at warehouse", detail:"Shipper stuffs cargo into container at their warehouse or CFS. No RCL visibility at this stage. Duration derived from RCFL.ActivityDate minus RLSH.ActivityDate in Mart_EMS_Activity.", sla:false},
+      {label:"Weight verification (VGM)", detail:"Shipper verifies gross mass per SOLAS VGM requirements before sending container to terminal. Weight must match SI declaration. Discrepancy = BL amendment risk.", sla:false},
+      {label:"Container sealed and trucked to terminal", detail:"Shipper seals container and arranges truck to export terminal. Must arrive before terminal cut-off time. Late arrival = gate-in failure = cargo rolled to next vessel.", sla:true}
+    ]
+  },
+  8: {
+    steps: [
+      {label:"Export customs declaration", detail:"Shipper or customs broker submits export declaration to Thai Customs (or relevant authority). Declaration must match BL commodity, weight, and HS code.", sla:false},
+      {label:"Customs examination", detail:"Customs may inspect physically (red lane) or release electronically (green lane). Physical inspection adds 1 to 3 days. No visibility in RCL systems — requires EDI feed from Customs.", sla:true},
+      {label:"Customs clearance certificate", detail:"Upon clearance, customs issues export permit. Container can proceed to terminal gate-in. DG cargo requires separate DG declaration and compliance check.", sla:false},
+      {label:"Gate-in proceed", detail:"Cleared container moves to terminal. Customs clearance must complete before terminal cut-off. This stage is a confirmed data gap — not measurable from cc_lh today.", sla:true}
+    ]
+  },
+  9: {
+    steps: [
+      {label:"Container arrives at terminal gate", detail:"Truck arrives at export terminal with laden container. Driver presents DO and seal number at gate. Terminal verifies booking, equipment number, and seal against system records.", sla:false},
+      {label:"Gate-in inspection", detail:"Terminal staff inspect container externally for damage, seal integrity, and overheight/overweight. DG containers are checked for IMDG compliance and stowage plan. Rejected containers are turned away.", sla:false},
+      {label:"EMS RCFL submission", detail:"Gate-in event recorded in EMS as activity RCFL (Received Full). EDI within 5 hrs, manual within 12 hrs. GateInDate recorded in Mart_EMS_Activity_GateOut. Late submission = scorecard impact.", sla:true},
+      {label:"Container placed in yard", detail:"Container is positioned in terminal yard according to load plan. Yard position determines crane sequence and loading efficiency. Optimal yard planning reduces EZLL time.", sla:false},
+      {label:"Cut-off compliance check", detail:"Gate-in must occur before vessel cut-off time. Late gate-in = cargo cannot be loaded on nominated vessel. Container dwell time (gate-in to vessel load) clock starts here.", sla:true}
+    ]
+  },
+  10: {
+    steps: [
+      {label:"Customer submits SI", detail:"Shipper or agent submits Shipping Instruction to Central Doc via e-Service, email, or DCS portal. SI must include: consignee, notify party, commodity description, marks and numbers, weight, and HS code.", sla:false},
+      {label:"SI cut-off deadline", detail:"SI must be submitted before the SI cut-off (typically 48 to 72 hrs before ETD depending on trade lane). 42% of SIs are submitted after cut-off — the single largest compliance gap in this phase. Triggers EZLL blocking.", sla:true},
+      {label:"SI validation", detail:"Central Doc validates SI against booking: commodity match, equipment type, weight limits, DG compliance, and OOG dimensions. Discrepancies are returned to shipper for correction — each cycle adds hours.", sla:true},
+      {label:"Amendment handling", detail:"If shipper requests SI amendment after submission, Central Doc must re-validate. Amendments after BL draft increase BL amendment rate KPI. Late amendments can push BL past the 24 hr ATD SLA.", sla:true},
+      {label:"SI accepted and BL draft triggered", detail:"Validated SI triggers BL draft creation in DCS Central Doc module. FactBLActivityLog records the status change. BL process time clock starts from SI acceptance, not SI submission.", sla:false}
+    ]
+  },
+  11: {
+    steps: [
+      {label:"BL draft created in DCS", detail:"Central Doc creates BL draft in DCS based on validated SI. FactBLContainers is updated with container details. BL number assigned. BL draft sent to shipper for review via e-Service.", sla:false},
+      {label:"Shipper reviews BL draft", detail:"Shipper checks all BL fields: consignee, notify party, description of goods, port pair, vessel/voyage, freight terms. Any discrepancy must be flagged within the review window.", sla:false},
+      {label:"BL amendment cycle", detail:"If shipper requests changes, Central Doc amends and reissues draft. Each cycle adds to BL process time. BL amendment rate is a key KPI. Late SI (step 10) is the primary driver of amendments.", sla:true},
+      {label:"BL finalised and approved", detail:"Once shipper confirms, BL is finalised in DCS. FlagLastModifyDate updated. BL must be manifested and invoiced within 24 hrs of ATD. 22% currently exceed this target.", sla:true},
+      {label:"BL tracking close", detail:"Central Doc must close BL tracking within 48 hrs of ATD. Late close affects FactBLActivityLog metrics and cascades into AR aging. EZLL blocking at step 15 is a secondary cause of late BL close.", sla:true}
+    ]
+  },
+  12: {
+    steps: [
+      {label:"Cargo manifest compilation", detail:"Central Doc compiles cargo manifest from all BLs for the vessel voyage. Manifest lists all cargo, containers, weights, and HS codes. Must be submitted to port authority and customs.", sla:false},
+      {label:"DG manifest", detail:"DG cargo requires separate dangerous goods manifest per IMDG code. DG manifest accuracy rate is a key compliance KPI. Errors can result in port authority rejection and vessel departure delay.", sla:true},
+      {label:"Regulatory filing (AMS/AFR/ENS)", detail:"Trade-lane-specific electronic filings: AMS for US, AFR for Japan, ENS for EU. Filing must be completed at least 24 hrs before ETD. Deadline varies by trade lane. ME routes show 11% compliance gap.", sla:true},
+      {label:"Manifest submission to terminal", detail:"Final cargo manifest submitted to terminal for vessel load plan. Terminal uses manifest to confirm yard positions and crane sequence. Late manifest = load plan disruption = EZLL delay risk.", sla:true},
+      {label:"Manifest and invoice SLA check", detail:"MartBLManifestInvoiceSOP records ManifestInvoiceDate. Target: within 24 hrs of ATD. Both export manifest and invoice must be complete. 89% current compliance — 11% breaching.", sla:true}
+    ]
+  },
+  13: {
+    steps: [
+      {label:"Empty container gate-out from terminal", detail:"After vessel departure, empty containers available for repositioning or shipper pickup are released from terminal. EMS event recorded.", sla:false},
+      {label:"EMS submission", detail:"EOM team submits EMS gate event via EDI (within 5 hrs) or manually (within 12 hrs). Hard errors in EDI must be resolved daily — target is 0 pending hard errors. PBI report 52 monitors this.", sla:true},
+      {label:"Empty repositioning", detail:"Empty containers are repositioned from surplus locations to deficit locations. Repositioning instructions from HQ EOM. IJS job order required before truck movement.", sla:false},
+      {label:"Empty stay day monitoring", detail:"EOM monitors empty stay days at each location. Long-stay containers (beyond target days) are prioritised for release or repositioning. Stay day KPI feeds into DnD waiver justification.", sla:true}
+    ]
+  },
+  14: {
+    steps: [
+      {label:"IJS job order creation", detail:"Location staff create IJS Job Order in DCS BEFORE any container movement. JO must include: vendor, routing, rate and currency, transport mode, equipment type, validity date. JO creation before movement is mandatory.", sla:true},
+      {label:"Tariff approval", detail:"If no existing tariff contract, procurement must approve rate via email to rcl.procurement@rclgroup.com. 6 mandatory items from tariff approval email must be in JO. No tariff = no movement authorised.", sla:true},
+      {label:"Truck/barge/rail movement", detail:"RCLL executes inland transport. Movement types: Laden Export (BKG-linked), Laden Import (BL-linked), Empty Ad-hoc, Laden Ad-hoc. RCLL TMS records actual movement times — not yet confirmed in cc_lh.", sla:false},
+      {label:"ICD handling (if applicable)", detail:"For ICD cargo, container is stripped/stuffed at ICD facility. ICD volume (TEU) and hinterland volume by corridor are tracked KPIs. ICD adds transit time vs direct port delivery.", sla:false},
+      {label:"Delivery confirmation", detail:"Delivery confirmed in system. For import cargo, customer signs delivery receipt. Truck return SLA (RCLL) tracked separately from container return (RCCN). Data gap: RCLL TMS vs cc_lh not confirmed.", sla:false}
+    ]
+  },
+  15: {
+    steps: [
+      {label:"Vessel arrival at port (ATA)", detail:"Vessel arrives and anchors or proceeds to pilot station. ATA_Datetime recorded in DimVssSchedulePortCall. Port stay clock starts. Anchor time and pilot-on-board time are recorded in TDR.", sla:false},
+      {label:"Vessel berths (ATB)", detail:"Vessel moors at berth. ATB recorded. BTS (Berth to Start) = time from ATB to first crane lift (EZLL). BTS target is minimal — long BTS means vessel ready but operations not started. Idle time tracked.", sla:false},
+      {label:"EZLL — first crane lift", detail:"First crane movement begins. EZLL timestamp = commence field in FactTerminalDepartureReportDetail. Three blockers must be clean before EZLL can start: BKG clean, EMS hard errors zero, EZLL validation complete.", sla:true},
+      {label:"Cargo operations", detail:"Load and discharge operations. Net Productivity target: at least 50.7 MPH (TE-02). Total moves, crane count, and hatch cover operations recorded in TDR. Restow events add non-productive time.", sla:false},
+      {label:"EZDL — last crane lift", detail:"Last crane movement. EZDL = completed field in TDR. CTD (Completion to Departure) = time from EZDL to ATD. Long CTD means operations done but vessel still at berth — tugs, pilot, documentation.", sla:false},
+      {label:"Vessel departs (ATD)", detail:"ATD_Datetime recorded. Port stay duration = ATD minus ATA. Target: under 19.7 hrs (TE-01). Idle time BTS plus CTD target: under 2.6 hrs (TE-03). TDR must be submitted within 24 hrs of ATD.", sla:true}
+    ]
+  },
+  16: {
+    steps: [
+      {label:"Vessel departs POL", detail:"ATD confirmed in DimVssSchedulePortCall. Ocean transit begins. Vessel follows scheduled route with proforma speed and consumption targets.", sla:false},
+      {label:"Bunker consumption monitoring", detail:"RSM monitors bunker consumption vs proforma. Target: under 90.3 ton per nautical mile (Reg Ops-01). Significant deviation triggers bunker audit. OPEX tracking via Bassnet and ROM — confirm reconciliation.", sla:true},
+      {label:"Speed and schedule monitoring", detail:"Vessel speed and ETA tracked against proforma schedule (Reg Ops-03). Schedule integrity index target: at least 60% (Reg Ops-04). ETA revisions logged in FactVssSchedulePortCallEditLog.", sla:true},
+      {label:"Vessel maintenance (VMC)", detail:"On-passage maintenance tasks tracked. VMC performance score target: at least 85% (Reg Ops-06). SHS proforma must be completed within 5 days of ATD. Maintenance delays can affect port stay at next port.", sla:true},
+      {label:"Bunker audit (if triggered)", detail:"Bunker audit pass rate target: at least 85% (Reg Ops-05). Audits triggered by excessive consumption variance. Audit findings logged in RSM OPEX Report.", sla:false}
+    ]
+  },
+  17: {
+    steps: [
+      {label:"Transshipment port arrival", detail:"Vessel arrives at hub port (POT1/POT2). Transshipment containers are discharged and held in terminal yard. POT ATA and ATD tracked in DimVssSchedulePortCall.", sla:false},
+      {label:"Transshipment dwell", detail:"Containers wait for connecting vessel. Hub congestion or schedule changes can extend dwell beyond minimum connection time. Hub dwell not currently tracked in cc_lh — data gap.", sla:true},
+      {label:"Connecting vessel load", detail:"Containers loaded onto connecting vessel as per load plan. Schedule integrity across legs measured as combined index (Reg Ops-04). Missed connection = container rolled to next feeder or direct call.", sla:true},
+      {label:"Final leg to POD", detail:"Container on final vessel leg to port of discharge. POD ETA published to import customer. Last ETA revision before ATA determines ETA accuracy KPI.", sla:false}
+    ]
+  },
+  18: {
+    steps: [
+      {label:"ETA notification to customer", detail:"RCL or agent sends Arrival Notice (AN) to consignee and notify party. AN should be sent before vessel arrival. 12% of notifications currently sent after vessel arrival — breaching the notification SLA.", sla:true},
+      {label:"Import documentation preparation", detail:"Consignee prepares import documents: original BL or telex release, import permit, customs declaration. Documents must be ready before vessel arrival to avoid port dwell.", sla:false},
+      {label:"Vessel arrives at POD (ATA)", detail:"POD_ATA_Datetime recorded in DimVssSchedulePortCall. Free time clock for import DnD starts at vessel arrival or discharge, depending on trade lane terms.", sla:false},
+      {label:"ATA accuracy check", detail:"ETA accuracy = ETA_Datetime vs ATA_Datetime. FactVssSchedulePortCallEditLog shows revision history. High revision frequency indicates schedule instability. ETA accuracy KPI not yet in Location PBI dashboard.", sla:false}
+    ]
+  },
+  19: {
+    steps: [
+      {label:"Container grade assessment on return", detail:"When empty container is returned (RCCN gate-in), EOM assesses condition and assigns grade (A/B/C/D). Grade determines repair requirement and re-use eligibility.", sla:false},
+      {label:"EOR submission", detail:"If repair needed, Equipment Order for Repair is submitted in DCS MnR module within 24 hrs of gate-in. EOR triggers repair estimate (FactMNR_EstimateRepair) and authorisation workflow.", sla:true},
+      {label:"Repair execution and tracking", detail:"Depot executes repair per authorised EOR. M&R cost per TEU tracked as EOM-01 KPI. Off-hire containers tracked separately. Lease vs owned cost ratio monitored for fleet optimisation.", sla:false},
+      {label:"Equipment forecasting", detail:"EOM-08: 4-week pickup forecast ratio. Data gap — ForecastPickup_4wk column not confirmed in Silver_EOM_Inventory. Empty slot swap volume tracked as EOM-14 (SwapType flag also unconfirmed).", sla:false},
+      {label:"Abandon case resolution", detail:"EOM-13: resolution date and status for abandon cases (cargo abandoned by shipper/consignee). ResolutionDate column not confirmed in Silver_DND_Billing. Abandon case count and resolution SLA are the KPIs.", sla:true}
+    ]
+  },
+  20: {
+    steps: [
+      {label:"Container discharged from vessel (DFUL)", detail:"Laden container discharged from vessel at POD terminal. DFUL activity code recorded in Mart_EMS_Activity. DFUL_Date in FactDNDMonitoring. Free time clock starts at DFUL event.", sla:false},
+      {label:"Import customs clearance", detail:"Consignee or customs broker submits import declaration. Customs may hold container for examination. Physical inspection adds days to dwell. No visibility in cc_lh — similar gap to export customs stage.", sla:true},
+      {label:"Delivery Order release", detail:"Once customs cleared and freight paid, DO is released by Central Doc. DO_Release_Flag updated in EOM_Inventory_Report. Consignee can now collect container from terminal.", sla:false},
+      {label:"Customer pickup (RLCN)", detail:"Consignee or their trucker collects laden container from terminal CY. RLCN activity recorded in Mart_EMS_Activity. RLCN_Date in FactDNDMonitoring. 37% of containers dwell beyond free time before pickup — primary DnD trigger.", sla:true},
+      {label:"DFUL to RLCN dwell monitoring", detail:"DFUL_RLCN_DiffDate pre-computed in FactDNDMonitoring. This is the terminal dwell KPI. If dwell exceeds free time, DnD demurrage accrues. Import dwell KPI not yet in Location dashboard — flagged to add.", sla:true}
+    ]
+  },
+  21: {
+    steps: [
+      {label:"Customer strips cargo at warehouse", detail:"Consignee unloads cargo from container at their warehouse or CFS. Stripping time is not tracked in RCL systems. Container is now empty and must be returned to depot within free time.", sla:false},
+      {label:"Free time monitoring", detail:"EOM monitors RLCN date plus free days allowance (from QuotationDetentionDemurragRate or BL terms). If return deadline approaching, automated alert should trigger. Alert system not confirmed in cc_lh.", sla:false},
+      {label:"Empty return to depot (RCCN)", detail:"Customer trucks empty container to designated depot. RCCN gate-in recorded in Mart_EMS_Activity. RCCN_Date in FactDNDMonitoring. 46% of containers returned late — highest DnD exposure in the journey.", sla:true},
+      {label:"RLCN to RCCN dwell check", detail:"RLCN_RCCN_DiffDate pre-computed in FactDNDMonitoring. If this value exceeds free days, DnD detention accrues. DnD charge is raised by AR team. DnD waiver requests handled by EOM.", sla:true},
+      {label:"DnD invoice raised", detail:"AR team raises DnD invoice based on FactDNDMonitoring data. DnD debtors tracked in InvoiceListReport. DnD waiver ratio tracked by EOM (EOM-11). Late empty return is the single largest DnD driver.", sla:true},
+      {label:"Truck delivery SLA (RCLL)", detail:"For inland deliveries, RCLL manages truck return leg. Truck delivery SLA tracked separately. RCLL TMS data not confirmed in cc_lh — this is a data gap that must be resolved.", sla:false}
+    ]
+  },
+  22: {
+    steps: [
+      {label:"Invoice trigger confirmation", detail:"Invoice start point is ambiguous — could be BL issue date, ATD, or cargo delivery date. This must be agreed with F&A before KPI clock is set. Ambiguity causes 21% of invoices to be flagged as delayed.", sla:true},
+      {label:"Freight invoice creation", detail:"AR team creates freight invoice in DCS invoice module. Invoice covers ocean freight, surcharges (BAF, CAF, THC), and any applicable fees. InvoiceListReport populated.", sla:false},
+      {label:"DnD invoice (if applicable)", detail:"Separate DnD invoice raised by AR if empty return was late. Linked to FactDNDMonitoring. DnD debtors tracked separately from credit debtors in InvoiceListReport.", sla:false},
+      {label:"Credit debtor monitoring", detail:"F&A monitors credit debtors aging daily. AR daily aging report tracks overdue invoices. Credit debtor count and aging days are F&A KPIs. GL balance reconciled monthly.", sla:true},
+      {label:"Month-end financial statements", detail:"F&A-02: month-end financial statements must be distributed by the 3rd of every month. F&A-01: interest income to unencumbered cash ratio tracked vs SOFR benchmark. Data sourced from FA_LH, not cc_lh.", sla:true}
+    ]
+  }
+};
+
+const STAGES=[
+  {id:1,label:"Rate\nInquiry",phase:"PRE",dept:["Trade"],sla:1,cycleHrs:5.2,slaComp:87,vol:820,status:"warn",goldTbl:"FactQuotationRate",pain:"~13% of inquiries exceed the 1 hr logging SLA. No dedicated FactRateInquiry table confirmed in cc_lh — cycle time proxied from FactQuotationRate.QtnCreateDate.",note:"Derive from FactQuotationRate.QtnCreateDate as inquiry start. SLA target: 1 hr (matrix row 9).",kpi:"Inquiry logged under 1 hr"},
+  {id:2,label:"Quotation",phase:"PRE",dept:["Trade"],sla:2,cycleHrs:3.8,slaComp:77,vol:402651,status:"bad",coc:{cycleHrs:3.8,slaComp:77,vol:402651,failRate:23,autoApprove:{vol:132374,avgHrs:0.4,failRate:1},rateApprove:{vol:117166,avgHrs:4.8,failRate:30},dndApprove:{vol:65330,avgHrs:4.7,failRate:33},bothApprove:{vol:87781,avgHrs:7.6,failRate:37}},soc:{cycleHrs:5.1,slaComp:71,vol:23710,failRate:29,autoApprove:{vol:1159,avgHrs:2.6,failRate:2},rateApprove:{vol:22543,avgHrs:5.2,failRate:30},dndApprove:{vol:1,avgHrs:83.6,failRate:100},bothApprove:{vol:7,avgHrs:84.0,failRate:71}},goldTbl:"FactQuotationRate · FactQuotationActivityLog",pain:"COC (Jun 2026): 402,651 QTNs, avg 3.8 hrs, 23% fail. Need Rate AND DnD Approve (87,781): worst bucket at 7.6 hrs avg, 37% fail. Need Rate Approve (117,166): 4.8 hrs, 30% fail. Need DnD Approve (65,330): 4.7 hrs, 33% fail. Auto Approve (132,374) at 0.4 hrs is clean. SOC: 23,710 QTNs, avg 5.1 hrs, 29% fail. Need Rate Approve (22,543): 5.2 hrs, 30% fail. Need Rate+DnD Approve (7): extreme outlier at 84 hrs avg. All buckets except Auto Approve breach the 2 hr SLA target.",note:"Source: Quotation Analysis PBI Jun 2026 — COC and SOC views. Approval structure: Auto / Need Rate / Need DnD / Need Rate+DnD. FactQuotationRate: QtnCreateDate, Qtn1stClosedDate, QtnLastClosedDate.",kpi:"QTN process time under 2 hrs · Conversion at least 55%"},
+  {id:3,label:"Customer\nAccept",phase:"PRE",dept:["Trade","CS"],sla:null,cycleHrs:null,slaComp:null,vol:null,status:"na",goldTbl:"FactBookingActivityLog",pain:"No dedicated customer acceptance event in DCS. Acceptance is inferred from the booking creation gap. CRM data accuracy tracked as a KPI at this stage.",note:"Derive as: BookingDate minus QtnLastClosedDate. KPI includes BCO split and CBM mapping error rate.",kpi:"Active customer count · Return/Lost/Downgrade"},
+  {id:4,label:"Booking",phase:"PRE",dept:["CS"],sla:2,cycleHrs:15.8,slaComp:50,vol:55394,status:"bad",coc:{cycleHrs:15.8,slaComp:50,vol:50080,failRate:50,haveBSA:{vol:36506,avgHrs:18.2,failRate:57},noBSA:{vol:7863,avgHrs:16.8,failRate:57}},soc:{cycleHrs:15.2,slaComp:81,vol:5314,failRate:19,haveBSA:{vol:1554,avgHrs:45.3,failRate:58},noBSA:{vol:241,avgHrs:42.6,failRate:46}},goldTbl:"BLBOOKINGInMonth · DimBkgCancellationReasons",pain:"COC: 50,080 bookings, avg 15.8 hrs, 50% fail — highest failure rate in pre-shipment. Have BSA (36,506): 57% fail, 18.2 hrs. Auto Approve (5,711) is 100% pass at 0.0 hrs but only 11.4% of volume. SOC: 5,314 bookings, avg 15.2 hrs. Have BSA (1,554): 45.3 hrs, 58% fail — severe bottleneck. KRPUS consistently slowest location across both.",note:"Source: Booking Analysis PBI — COC (50,080 bookings, 15.8 hrs) and SOC (5,314 bookings, 15.2 hrs). Cycle = BookingConfirmedDate minus BookingDate in BLBOOKINGInMonth.",kpi:"Booking process under 2 hrs · Close under 24 hrs ATD"},
+  {id:5,label:"Space\nConfirm",phase:"PRE",dept:["CS","Trade"],sla:4,cycleHrs:3.1,slaComp:88,vol:null,status:"ok",goldTbl:"BookingSpaceControl",pain:"8 to 12% of bookings require space re-negotiation. BSA approval time is right-skewed — median is preferred over mean.",note:"Matrix row 9: Space confirm SLA 4 hrs. Median approval time recommended.",kpi:"Space confirm under 4 hrs · BSA fill rate"},
+  {id:6,label:"Empty\nRelease",phase:"EXP",dept:["EOM"],sla:null,cycleHrs:18.4,slaComp:72,vol:680,status:"warn",goldTbl:"Mart_EMS_Activity · EOM_Inventory_Report",pain:"28% of RLSH events delayed beyond 24 hrs. Depot allocation and EA stock are primary blockers. EMS EDI SLA is 5 hrs, manual is 12 hrs.",note:"RLSH = Activity code in Mart_EMS_Activity. GateOutDate = depot exit. ActivityDate = release event.",kpi:"Repair turnaround under 1.5 days · EMS EDI under 5 hrs"},
+  {id:7,label:"Stuffing",phase:"EXP",dept:["Customer"],sla:null,cycleHrs:null,slaComp:null,vol:null,status:"na",goldTbl:"Mart_EMS_Activity (RLSH to RCFL delta)",pain:"No dedicated stuffing table in GOLD LH. Duration derived as RCFL.ActivityDate minus RLSH.ActivityDate per container.",note:"Stuffing duration = RCFL.ActivityDate minus RLSH.ActivityDate. No direct source.",kpi:"Derived from Gate In timing"},
+  {id:8,label:"Export\nCustoms",phase:"EXP",dept:["Customer","Customs"],sla:null,cycleHrs:null,slaComp:null,vol:null,status:"na",goldTbl:"No table confirmed",pain:"No customs clearance event in cc_lh. Requires EDI feed from Thai Customs. Currently unmeasurable from RCL data.",note:"Critical gap: Thai Customs EDI feed not in cc_lh schema.",kpi:"Not measurable — EDI feed needed"},
+  {id:9,label:"Gate In",phase:"EXP",dept:["TE"],sla:null,cycleHrs:4.2,slaComp:94,vol:660,status:"ok",goldTbl:"Mart_EMS_Activity_GateOut · FactTOSCostForTrade",pain:"6% of gate-in events show over 12 hr gap from stuffing completion. TOS vs EDI timing uncertainty creates timestamp inconsistency.",note:"GateInDate on RCFL record = received full at terminal.",kpi:"Gate-in vs cutoff % · Volume export TEU"},
+  {id:10,label:"Shipping\nInstruction",phase:"EXP",dept:["Customer","Cen Doc"],sla:24,cycleHrs:31.5,slaComp:58,vol:620,status:"bad",goldTbl:"FactBLContainers · FactBLActivityLog",pain:"42% of SIs submitted after cut-off. Late SI is the primary cause of BL draft delays and EZLL blocking. Cascades into Step 11 and TDR failures.",note:"SI submission timestamp — confirm field in FactBLContainers vs separate event table.",kpi:"BL process under 24 hrs · Tracking close under 48 hrs ATD"},
+  {id:11,label:"BL Draft\n& Final",phase:"EXP",dept:["Cen Doc"],sla:24,cycleHrs:19.2,slaComp:78,vol:600,status:"warn",goldTbl:"MartBLManifestInvoiceSOP · FactBLActivityLog",pain:"22% exceed 24 hr SLA post-ATD. Late SI (step 10) is the primary cascade cause. BL amendment rate is a secondary KPI.",note:"Cycle = ManifestInvoiceDate minus POL_ATD_Datetime from MartBLManifestInvoiceSOP.",kpi:"BL process under 24 hrs · Tracking under 48 hrs ATD"},
+  {id:12,label:"Manifest &\nRegulatory",phase:"EXP",dept:["Cen Doc"],sla:24,cycleHrs:8.1,slaComp:89,vol:590,status:"ok",goldTbl:"MartBLManifestInvoiceSOP",pain:"Manifest filing must be submitted at least 24 hrs before ETD. DG manifest accuracy is the key compliance KPI. ME routes show 11% gap.",note:"POL_ATD_Datetime to ManifestInvoiceDate = export manifest cycle.",kpi:"Manifest filed 24 hrs before ETD · DG accuracy"},
+  {id:13,label:"Empty\nRelease/EQ",phase:"EXP",dept:["EOM"],sla:5,cycleHrs:6.3,slaComp:83,vol:null,status:"warn",goldTbl:"Mart_EMS_Activity · EOM_Inventory_Report",pain:"17% of EMS events submitted outside the 5 hr EDI SLA. Hard error monitoring target is 0 pending errors daily.",note:"EMS EDI under 5 hrs, Manual under 12 hrs after actual movement. PBI report 52 monitors hard errors.",kpi:"EMS gate-out timeliness · Empty stay day"},
+  {id:14,label:"Inland\nTransport",phase:"EXP",dept:["RCLL"],sla:null,cycleHrs:null,slaComp:null,vol:null,status:"na",goldTbl:"FactIJS_JobOrder · IJSMatchBookingBLNo",pain:"ICD volume and hinterland volume by corridor are the tracked KPIs. Truck turnaround not in current PBI. RCLL TMS standalone vs cc_lh not confirmed.",note:"IJS job order must be created before each movement. RCLL TMS feed to cc_lh unconfirmed.",kpi:"ICD TEU · Hinterland volume by corridor"},
+  {id:15,label:"Depot &\nTerminal",phase:"VSL",dept:["Reg Ops"],sla:19.7,cycleHrs:14.6,slaComp:85,vol:560,status:"ok",goldTbl:"FactTerminalDepartureReportDetail",pain:"Port stay target under 19.7 hrs (TE-01). Net productivity at least 50.7 MPH (TE-02). Idle time BTS plus CTD under 2.6 hrs (TE-03). EZLL blocking: BKG, EMS, and EZLL validation must all be clean.",note:"EZLL = commence field; EZDL = completed field in TDR detail table.",kpi:"Port stay under 19.7 hrs · Net prod at least 50.7 MPH"},
+  {id:16,label:"Vessel",phase:"VSL",dept:["RSM"],sla:null,cycleHrs:null,slaComp:94,vol:540,status:"ok",goldTbl:"DimVssSchedulePortCall · FactVssSchedulePortCallEditLog",pain:"Bunker consumption under 90.3 t/NM (Reg Ops-01). Schedule integrity at least 60% (Reg Ops-04). VMC performance at least 85% (Reg Ops-06). Bunker audit pass rate at least 85% (Reg Ops-05).",note:"ATD_Datetime to next port ATA_Datetime = ocean transit. Edit log tracks schedule revisions.",kpi:"Bunker under 90.3 t/NM · Schedule integrity at least 60%"},
+  {id:17,label:"Transit",phase:"VSL",dept:["TE"],sla:null,cycleHrs:null,slaComp:91,vol:520,status:"ok",goldTbl:"DimVssSchedulePortCall · BLBOOKINGInMonth",pain:"T/S cargo incurs additional dwell at hub port. POT1/POT2/POT3 routing in BLBOOKINGInMonth. Hub congestion not yet in cc_lh.",note:"Transit = POT ATD to POD ATA. BLBOOKINGInMonth carries POT1 POT2 POT3 fields.",kpi:"Schedule integrity · Transit time vs proforma"},
+  {id:18,label:"ETA / Import\nNotice",phase:"IMP",dept:["TE"],sla:null,cycleHrs:2.4,slaComp:88,vol:500,status:"ok",goldTbl:"DimVssSchedulePortCall · FactVssSchedulePortCallEditLog",pain:"12% of ETA notifications sent after vessel arrival. ETA notification lead time not yet tracked systematically in PBI.",note:"ETA accuracy = ETA_Datetime vs ATA_Datetime delta. Edit log tracks revision history.",kpi:"ETA accuracy · Import dwell time · Free time utilisation"},
+  {id:19,label:"Equipment\nMgmt",phase:"IMP",dept:["EOM"],sla:null,cycleHrs:null,slaComp:82,vol:null,status:"warn",goldTbl:"MartSummaryRCLFleetEquipment · FactMNR_EstimateRepair",pain:"M&R cost per TEU (EOM-01), container grade distribution, off-hire count, and lease vs owned ratio are the key KPIs. Silver layer gaps: EOM-08, EOM-13, EOM-14.",note:"EOR submission under 24 hrs after gate-in. EOM-13 ResolutionDate confirm in Silver_DND_Billing.",kpi:"M&R cost per TEU · Container grade · Off-hire count"},
+  {id:20,label:"Import\nDischarge",phase:"IMP",dept:["TE","Customer"],sla:null,cycleHrs:28.7,slaComp:63,vol:480,status:"bad",goldTbl:"FactDNDMonitoring · Mart_EMS_Activity · EOM_Inventory_Report",pain:"37% of containers exceed free-time before customer pickup (RLCN). Primary DnD trigger. Import dwell KPI not in current Location KPI set — matrix flags it to add to TE/EOM dashboard.",note:"DFUL_RLCN_DiffDate pre-computed in FactDNDMonitoring. Verify DFUL and RLCN as distinct EMS codes.",kpi:"DFUL to RLCN dwell · Free time utilisation"},
+  {id:21,label:"Empty Return\n& DnD",phase:"IMP",dept:["EOM","RCLL"],sla:null,cycleHrs:41.3,slaComp:54,vol:460,status:"bad",goldTbl:"FactDNDMonitoring · Mart_EMS_Activity (RCCN)",pain:"46% of containers returned late (RCCN after free-time). Highest DnD exposure in the entire journey. Empty return on-time rate, DnD incurred, and truck delivery SLA are the three KPIs.",note:"RLCN_RCCN_DiffDate pre-computed in FactDNDMonitoring. Verify RCCN as distinct EMS activity code.",kpi:"Empty return on-time % · DnD incurred · Truck SLA"},
+  {id:22,label:"Invoice",phase:"IMP",dept:["F&A"],sla:null,cycleHrs:null,slaComp:79,vol:440,status:"warn",goldTbl:"MartBLManifestInvoiceSOP · InvoiceListReport",pain:"21% of invoices delayed. Invoice trigger ambiguity (BL issue vs ATD vs cargo delivery) causes inconsistent measurement start point.",note:"F&A-01: interest income to unencumbered cash. F&A-02: month-end FS by 3rd. Confirm trigger with F&A.",kpi:"F&A-01 interest income · F&A-02 FS by 3rd"},
+];
+
+const DEPTS=["Trade","CS","EOM","Customer","Customs","TE","Cen Doc","RCLL","Reg Ops","RSM","F&A"];
+const PHASE_META={
+  PRE:{label:"Pre-shipment",color:"var(--pre)",bg:"var(--pre-bg)"},
+  EXP:{label:"Export",color:"var(--exp)",bg:"var(--exp-bg)"},
+  VSL:{label:"Vessel",color:"var(--vsl)",bg:"var(--vsl-bg)"},
+  IMP:{label:"Import",color:"var(--imp)",bg:"var(--imp-bg)"},
+};
+let activePhase="ALL";
+
+function filterPhase(ph){
+  activePhase=ph;
+  document.querySelectorAll(".pill").forEach(b=>b.classList.toggle("active",b.dataset.phase===ph));
+  renderAll();
+  closeDetail();
+}
+function closeDetail(){
+  document.getElementById("detail-panel").innerHTML="";
+  document.getElementById("detail-col").classList.remove("show");
+}
+function getMetric(s,m){
+  if(m==="cycle") return s.cycleHrs;
+  if(m==="sla") return s.slaComp;
+  if(m==="vol") return s.vol;
+  return null;
+}
+function fmtMetric(v,m){
+  if(v===null||v===undefined) return "—";
+  if(m==="cycle") return v.toFixed(1)+"h";
+  if(m==="sla") return v+"%";
+  if(m==="vol") return v+"T";
+}
+function renderAll(){
+  const metric=document.getElementById("metric-sel").value;
+  const sl=document.getElementById("swimlane");
+  sl.innerHTML="";
+  const vis=activePhase==="ALL"?STAGES:STAGES.filter(s=>s.phase===activePhase);
+  if(!vis.length){sl.innerHTML="<div style='padding:20px;color:var(--text-3)'>No stages.</div>";return;}
+
+  const phRow=document.createElement("div");
+  phRow.className="phase-row";
+  let prevPhase=null,phGroup=null,phCount=0;
+  vis.forEach((s,i)=>{
+    if(s.phase!==prevPhase){
+      if(phGroup){phGroup.style.width=(phCount*110+(phCount-1)*4)+"px";phRow.appendChild(phGroup);}
+      phGroup=document.createElement("div");
+      phGroup.className="phase-seg";
+      const pm=PHASE_META[s.phase];
+      phGroup.style.cssText="background:"+pm.bg+";color:"+pm.color;
+      phCount=0;prevPhase=s.phase;
+    }
+    phCount++;
+    phGroup.textContent=PHASE_META[s.phase].label;
+    if(i===vis.length-1){phGroup.style.width=(phCount*110+(phCount-1)*4)+"px";phRow.appendChild(phGroup);}
+  });
+  sl.appendChild(phRow);
+
+  const shr=document.createElement("div");shr.className="stage-header-row";
+  vis.forEach(s=>{
+    const c=document.createElement("div");c.className="stage-hdr";
+    c.innerHTML="<span>"+s.id+"</span>"+s.label.replace("\n","<br>");
+    c.style.borderBottomColor=PHASE_META[s.phase].color;
+    c.style.color=PHASE_META[s.phase].color;
+    shr.appendChild(c);
+  });
+  sl.appendChild(shr);
+
+  const mr=document.createElement("div");mr.className="metric-row";
+  const mlbl=document.createElement("div");mlbl.className="metric-lane-lbl";
+  mlbl.textContent=metric==="cycle"?"Avg hrs":metric==="sla"?"SLA %":"TEU";
+  mr.appendChild(mlbl);
+  vis.forEach(s=>{
+    const c=document.createElement("div");
+    c.className="metric-cell "+s.status;
+    c.textContent=fmtMetric(getMetric(s,metric),metric);
+    c.onclick=()=>showDetail(s);
+    mr.appendChild(c);
+  });
+  sl.appendChild(mr);
+
+  const cr=document.createElement("div");cr.className="connector-row";
+  vis.forEach((s,i)=>{
+    const c=document.createElement("div");c.className="conn";
+    if(i<vis.length-1){
+      const arr=document.createElement("div");arr.className="conn-arrow";
+      const badge=document.createElement("div");
+      badge.className="conn-badge "+s.status;
+      badge.textContent=fmtMetric(getMetric(s,metric),metric);
+      badge.style.cursor="pointer";
+      badge.onclick=()=>showDetail(s);
+      arr.appendChild(badge);c.appendChild(arr);
+    }
+    cr.appendChild(c);
+  });
+  sl.appendChild(cr);
+
+  DEPTS.forEach(dept=>{
+    if(!vis.some(s=>s.dept.includes(dept))) return;
+    const row=document.createElement("div");row.className="dept-row";
+    const lbl=document.createElement("div");lbl.className="dept-lbl";lbl.textContent=dept;
+    row.appendChild(lbl);
+    vis.forEach(s=>{
+      const active=s.dept.includes(dept);
+      const cell=document.createElement("div");
+      if(!active){cell.className="cell empty";}
+      else{
+        cell.className="cell "+s.phase+(s.status==="bad"?" bad":s.status==="warn"?" warn-border":"");
+        const nm=document.createElement("div");nm.className="cell-name";
+        nm.innerHTML=s.label.replace("\n","<br>");cell.appendChild(nm);
+        if(s.kpi){const kl=document.createElement("div");kl.className="cell-sla";kl.textContent=s.kpi;cell.appendChild(kl);}
+        if(s.status==="bad"){const w=document.createElement("div");w.style.cssText="position:absolute;top:3px;right:5px;font-size:10px";w.textContent="⚠";cell.appendChild(w);}
+        cell.onclick=()=>showDetail(s);
+      }
+      row.appendChild(cell);
+    });
+    sl.appendChild(row);
+  });
+}
+
+function showDetail(s){
+  const pm=PHASE_META[s.phase];
+  const statusLabel={ok:"On target",warn:"Watch",bad:"Bottleneck",na:"No data"};
+  const col=document.getElementById("detail-col");
+  col.classList.add("show");
+
+  function mkCocCard(label,obj,color){
+    if(!obj) return "";
+    var sub="";
+    if(obj.autoApprove){
+      sub="<div style='font-size:10px;color:var(--text-3);margin-top:3px;line-height:1.65'>"+
+        "Auto: "+obj.autoApprove.avgHrs.toFixed(1)+" hrs ("+obj.autoApprove.vol.toLocaleString()+")<br>"+
+        "Rate: "+obj.rateApprove.avgHrs+" hrs, "+obj.rateApprove.failRate+"% fail ("+obj.rateApprove.vol.toLocaleString()+")<br>"+
+        "DnD: "+obj.dndApprove.avgHrs+" hrs, "+obj.dndApprove.failRate+"% fail ("+obj.dndApprove.vol.toLocaleString()+")<br>"+
+        "Rate+DnD: "+obj.bothApprove.avgHrs+" hrs, "+obj.bothApprove.failRate+"% fail ("+obj.bothApprove.vol.toLocaleString()+")</div>";
+    } else if(obj.haveBSA){
+      sub="<div style='font-size:10px;color:var(--text-3);margin-top:3px;line-height:1.65'>"+
+        "Have BSA: "+obj.haveBSA.avgHrs+" hrs, "+obj.haveBSA.failRate+"% fail ("+obj.haveBSA.vol.toLocaleString()+")<br>"+
+        "No BSA: "+obj.noBSA.avgHrs+" hrs ("+obj.noBSA.vol.toLocaleString()+")</div>";
+    }
+    return "<div class='dp-card' style='border-left:2px solid "+color+"'>"+
+      "<div class='dp-card-lbl' style='font-weight:600;color:var(--text)'>"+label+" &mdash; "+obj.vol.toLocaleString()+"</div>"+
+      "<div class='dp-card-val bad' style='font-size:13px'>"+obj.cycleHrs.toFixed(1)+" hrs &middot; "+obj.failRate+"% fail</div>"+sub+
+    "</div>";
+  }
+
+  var cocSocHtml="";
+  if(s.coc&&s.soc){
+    cocSocHtml="<div style='font-size:10px;font-weight:600;color:var(--text-2);margin-bottom:6px;letter-spacing:0.04em'>COC vs SOC</div>"+
+      "<div class='coc-soc-grid' style='margin-bottom:10px'>"+
+        mkCocCard("COC",s.coc,"#E8A800")+
+        mkCocCard("SOC",s.soc,"#5A8FC2")+
+      "</div>";
+  }
+
+  var stepsHtml="";
+  var stepsData=STEPS_DETAIL[s.id];
+  if(stepsData){
+    var rows=stepsData.steps.map(function(step,i){
+      var bg=step.sla?"var(--bad-bg)":"var(--surface-2)";
+      var bc=step.sla?"var(--bad)":"var(--border)";
+      var tc=step.sla?"var(--bad)":"var(--text)";
+      var nb=step.sla?"<span style='font-size:9px;font-weight:700;background:var(--bad);color:#fff;border-radius:3px;padding:1px 5px;margin-left:5px'>SLA risk</span>":"";
+      var numBg=step.sla?"var(--bad)":"var(--border-strong)";
+      var numC=step.sla?"#fff":"var(--text-2)";
+      return "<div style='margin-bottom:7px;padding:8px 10px;border-radius:5px;background:"+bg+";border:1px solid "+bc+"'>"+
+        "<div style='display:flex;align-items:flex-start;gap:7px'>"+
+          "<span style='font-size:9px;font-weight:700;background:"+numBg+";color:"+numC+";border-radius:3px;padding:2px 5px;flex-shrink:0;margin-top:1px'>"+(i+1)+"</span>"+
+          "<div><div style='font-size:11px;font-weight:600;color:"+tc+";margin-bottom:3px'>"+step.label+nb+"</div>"+
+          "<div style='font-size:11px;color:var(--text-2);line-height:1.55'>"+step.detail+"</div></div>"+
+        "</div></div>";
+    }).join("");
+    stepsHtml="<div class='dp-section'><h4>PROCESS STEPS</h4>"+rows+"</div>";
+  }
+
+  var noteHasGap=s.goldTbl.indexOf("No table")>=0||s.status==="na";
+  var gapFlag=noteHasGap?"<div class='gap-flag'>&#9888; Data gap</div>":"";
+
+  var panel=document.getElementById("detail-panel");
+  panel.innerHTML=
+    "<div class='dp-top'>"+
+      "<div>"+
+        "<div class='dp-title'>"+s.id+". "+s.label.replace("\n"," ")+"</div>"+
+        "<span class='dp-phase-badge' style='background:"+pm.bg+";color:"+pm.color+"'>"+pm.label+" &middot; "+s.dept.join(", ")+"</span>"+
+      "</div>"+
+      "<button class='dp-close' onclick='closeDetail()'>Close</button>"+
+    "</div>"+
+    "<div class='dp-cards'>"+
+      "<div class='dp-card'><div class='dp-card-lbl'>Avg cycle time</div><div class='dp-card-val "+s.status+"'>"+(s.cycleHrs!==null?s.cycleHrs.toFixed(1)+" hrs":"&mdash;")+"</div></div>"+
+      "<div class='dp-card'><div class='dp-card-lbl'>SLA compliance</div><div class='dp-card-val "+s.status+"'>"+(s.slaComp!==null?s.slaComp+"%":"&mdash;")+"</div></div>"+
+      "<div class='dp-card'><div class='dp-card-lbl'>SLA target</div><div class='dp-card-val'>"+(s.sla?s.sla+" hrs":"&mdash;")+"</div></div>"+
+      "<div class='dp-card'><div class='dp-card-lbl'>Status</div><div class='dp-card-val "+s.status+"'>"+statusLabel[s.status]+"</div></div>"+
+    "</div>"+
+    cocSocHtml+
+    "<div class='dp-body'>"+
+      stepsHtml+
+      "<div class='dp-section'><h4>PAIN POINT</h4><p>"+s.pain+"</p></div>"+
+      "<div class='dp-section'>"+gapFlag+"<h4>GOLD LH SOURCE</h4><p class='mono'>"+s.goldTbl+"</p><p style='margin-top:6px;font-size:11px;color:var(--text-2)'>"+s.note+"</p></div>"+
+    "</div>";
+}
+
+renderAll();
+</script>
+</body>
+</html>
